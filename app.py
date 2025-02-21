@@ -31,6 +31,7 @@ SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxyz123/exec"
 def load_excel():
     """ Google Sheets에서 엑셀 데이터를 가져와 데이터프레임으로 변환 """
     try:
+        print("📌 Google Sheets 데이터 로드 시도...")
         response = requests.get(SHEET_API_URL)
         data = response.json()
         df = pd.DataFrame(data)
@@ -67,6 +68,7 @@ def verify():
     """ 이미지 인증 API """
     try:
         if "image" not in request.files:
+            print("❌ 오류: 클라이언트에서 이미지를 전송하지 않음.")
             return jsonify({"success": False, "message": "이미지를 업로드해주세요!"}), 400
 
         image_file = request.files["image"]
@@ -75,17 +77,21 @@ def verify():
         receipt_number, error_message = extract_info_from_image(image)
 
         if not receipt_number:
+            print(f"❌ OCR 실패: {error_message}")
             return jsonify({"success": False, "message": error_message}), 400
 
         df = load_excel()
         if df is None:
+            print("❌ 서버 오류: Google Sheets 데이터를 불러올 수 없음.")
             return jsonify({"success": False, "message": "서버 오류: Google Sheets 데이터를 불러올 수 없습니다."}), 500
 
         match = df[df["접수번호"] == int(receipt_number)]
 
         if not match.empty:
+            print(f"✅ 인증 성공! 접수번호: {receipt_number}")
             return jsonify({"success": True, "message": f"✅ 인증 성공! 접수번호: {receipt_number}"})
         else:
+            print("❌ 인증 실패: 접수번호가 일치하지 않음.")
             return jsonify({"success": False, "message": "❌ 인증 실패! 접수번호가 일치하지 않습니다."}), 400
 
     except Exception as e:
