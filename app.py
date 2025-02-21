@@ -7,6 +7,10 @@ from flask_cors import CORS
 from PIL import Image
 import requests
 from io import BytesIO
+import pytesseract
+
+# 🔹 Render 서버에서 Tesseract 실행 경로 설정
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 app = Flask(__name__)
 CORS(app)  # 🔹 모든 도메인에서 접근 가능하도록 CORS 설정
