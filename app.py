@@ -9,7 +9,7 @@ import requests
 from io import BytesIO
 
 app = Flask(__name__)
-CORS(app)  # 🔹 CORS 설정 (교차 출처 요청 허용)
+CORS(app)  # 🔹 CORS 설정 (모든 도메인 허용)
 
 # 🔹 Google Sheets에서 엑셀 데이터를 가져오기 (Apps Script API URL 사용)
 SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxyz123/exec"
