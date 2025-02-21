@@ -7,7 +7,17 @@ from flask_cors import CORS
 from PIL import Image
 import requests
 from io import BytesIO
-import pytesseract
+import shutil
+
+# 🔹 Tesseract 실행 경로 확인
+tesseract_path = shutil.which("tesseract")
+
+if tesseract_path:
+    print(f"✅ Tesseract 경로 확인됨: {tesseract_path}")
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    print("❌ Tesseract가 설치되지 않았거나, 경로를 찾을 수 없습니다.")
+    raise FileNotFoundError("Tesseract-OCR is not installed or not in PATH")
 
 # 🔹 Render 서버에서 Tesseract 실행 경로 설정
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
