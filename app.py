@@ -6,24 +6,20 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 import requests
-from io import BytesIO
 import shutil
+
+app = Flask(__name__)
+CORS(app)  # 🔹 모든 도메인에서 접근 가능하도록 CORS 설정
 
 # 🔹 Tesseract 실행 경로 확인
 tesseract_path = shutil.which("tesseract")
 
 if tesseract_path:
-    print(f"✅ Tesseract 경로 확인됨: {tesseract_path}")
+    print(f"✅ Tesseract 실행 경로 확인됨: {tesseract_path}")
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 else:
     print("❌ Tesseract가 설치되지 않았거나, 경로를 찾을 수 없습니다.")
-    raise FileNotFoundError("Tesseract-OCR is not installed or not in PATH")
-
-# 🔹 Render 서버에서 Tesseract 실행 경로 설정
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-
-app = Flask(__name__)
-CORS(app)  # 🔹 모든 도메인에서 접근 가능하도록 CORS 설정
+    tesseract_path = None  # 🔹 실행 불가 상태 표시
 
 # 🔹 Google Sheets에서 엑셀 데이터를 가져오기 (Apps Script API URL 사용)
 SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxyz123/exec"
@@ -32,6 +28,7 @@ def load_excel():
     """ Google Sheets에서 엑셀 데이터를 가져와 데이터프레임으로 변환 """
     try:
         response = requests.get(SHEET_API_URL)
+        response.raise_for_status()  # HTTP 오류 발생 시 예외 처리
         data = response.json()
         df = pd.DataFrame(data)
         return df
@@ -41,6 +38,9 @@ def load_excel():
 
 def extract_info_from_image(image):
     """ 이미지에서 '당첨' 단어와 5자리 숫자(접수번호)를 추출 """
+    if not tesseract_path:
+        return None, "Tesseract-OCR이 설치되지 않았습니다."
+
     try:
         text = pytesseract.image_to_string(image, lang="kor")  # OCR로 텍스트 추출
         print(f"📌 추출된 텍스트: {text}")
@@ -48,12 +48,11 @@ def extract_info_from_image(image):
         if "당첨" in text:
             match = re.search(r"\b\d{5}\b", text)  # 5자리 숫자 찾기
             if match:
-                receipt_number = match.group()
-                return receipt_number
-        return None
+                return match.group(), None  # (접수번호, 오류 없음)
+        return None, "❌ '당첨' 및 접수번호를 찾을 수 없습니다."
     except Exception as e:
         print(f"📌 OCR 오류 발생: {str(e)}")
-        return None
+        return None, f"OCR 오류 발생: {str(e)}"
 
 @app.route("/")
 def home():
@@ -64,16 +63,19 @@ def home():
 def verify():
     """ 이미지 인증 API """
     try:
+        if not tesseract_path:
+            return jsonify({"success": False, "message": "서버 오류: Tesseract-OCR이 설치되지 않았습니다."}), 500
+
         if "image" not in request.files:
             return jsonify({"success": False, "message": "이미지를 업로드해주세요!"}), 400
 
         image_file = request.files["image"]
         image = Image.open(image_file)
 
-        receipt_number = extract_info_from_image(image)
+        receipt_number, error_message = extract_info_from_image(image)
 
-        if not receipt_number:
-            return jsonify({"success": False, "message": "❌ 인증 실패! '당첨' 및 접수번호를 찾을 수 없습니다."}), 400
+        if error_message:
+            return jsonify({"success": False, "message": error_message}), 400
 
         df = load_excel()  # 최신 엑셀 데이터 로드
         if df is None:
