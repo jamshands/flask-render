@@ -3,11 +3,13 @@ import re
 import pytesseract
 import pandas as pd
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from PIL import Image
 import requests
 from io import BytesIO
 
 app = Flask(__name__)
+CORS(app)  # 🔹 CORS 설정 (교차 출처 요청 허용)
 
 # 🔹 Google Sheets에서 엑셀 데이터를 가져오기 (Apps Script API URL 사용)
 SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxyz123/exec"
@@ -38,17 +40,21 @@ def home():
 
 @app.route("/verify", methods=["POST"])
 def verify():
-    """ 이미지 인증 API: 업로드된 이미지에서 접수번호를 추출하고 Google Sheets와 비교 """
+    """ 이미지 인증 API """
     if "image" not in request.files:
-        return jsonify({"success": False, "message": "이미지를 업로드해주세요!"})
+        return jsonify({"success": False, "message": "이미지를 업로드해주세요!"}), 400
 
     image_file = request.files["image"]
-    image = Image.open(image_file)
+    
+    try:
+        image = Image.open(image_file)
+    except Exception as e:
+        return jsonify({"success": False, "message": f"이미지 처리 오류: {str(e)}"}), 400
 
     receipt_number = extract_info_from_image(image)
 
     if not receipt_number:
-        return jsonify({"success": False, "message": "❌ 인증 실패! '당첨' 및 접수번호를 찾을 수 없습니다."})
+        return jsonify({"success": False, "message": "❌ 인증 실패! '당첨' 및 접수번호를 찾을 수 없습니다."}), 400
 
     df = load_excel()  # 최신 엑셀 데이터 로드
 
@@ -57,7 +63,7 @@ def verify():
     if not match.empty:
         return jsonify({"success": True, "message": "✅ 인증 성공!", "receipt_number": receipt_number})
     else:
-        return jsonify({"success": False, "message": "❌ 인증 실패! 접수번호가 일치하지 않습니다."})
+        return jsonify({"success": False, "message": "❌ 인증 실패! 접수번호가 일치하지 않습니다."}), 400
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))  # Render에서 제공하는 PORT 환경 변수 사용
