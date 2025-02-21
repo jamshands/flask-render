@@ -19,8 +19,8 @@ if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 else:
     print("❌ Tesseract가 설치되지 않았거나, 경로를 찾을 수 없습니다.")
-    tesseract_path = None  # 🔹 실행 불가 상태 표시
-
+    raise FileNotFoundError("Tesseract-OCR is not installed or not in PATH")
+    
 # 🔹 Google Sheets에서 엑셀 데이터를 가져오기 (Apps Script API URL 사용)
 SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxyz123/exec"
 
