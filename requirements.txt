@@ -4,3 +4,4 @@ pytesseract
 pillow
 requests
 gunicorn
+flask_cors
